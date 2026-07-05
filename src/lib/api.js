@@ -1,7 +1,12 @@
 const json = (r) => r.json();
 
+// In production (Cloudflare Pages) set VITE_API_URL to the Render backend URL,
+// e.g. https://saarathi-crm-api.onrender.com  (no trailing slash).
+// In dev leave it empty so Vite proxies /api -> localhost:5000.
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
 async function req(path, opts = {}) {
-  const res = await fetch("/api" + path, {
+  const res = await fetch(API_BASE + "/api" + path, {
     headers: { "Content-Type": "application/json" },
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -24,7 +29,7 @@ export const api = {
   importLeads: (leads) => req("/leads/import", { method: "POST", body: { leads } }),
   exportUrl: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== "" && v != null));
-    return "/api/leads/export?" + qs.toString();
+    return API_BASE + "/api/leads/export?" + qs.toString();
   },
   testLead: (body) => req("/intake/test", { method: "POST", body }),
   updateLead: (id, body) => req(`/leads/${id}`, { method: "PATCH", body }),
