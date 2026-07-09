@@ -21,7 +21,9 @@ async function req(path, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   // Session invalid/expired on a protected route -> bounce to login.
-  if (res.status === 401 && !path.startsWith("/auth")) {
+  // (Skip /auth and /subscription: those handle their own 401 — the dev panel
+  //  probes /subscription to decide whether to show its developer login.)
+  if (res.status === 401 && !path.startsWith("/auth") && !path.startsWith("/subscription")) {
     setToken(null);
     if (!location.pathname.startsWith("/login")) location.assign("/login");
     throw new Error("Session expired");
