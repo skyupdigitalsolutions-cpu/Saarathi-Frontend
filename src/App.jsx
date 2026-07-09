@@ -112,6 +112,9 @@ export default function App() {
     return <Login onAuthed={(u) => { setAuth({ loading: false, user: u }); navigate("/"); }} />;
   }
 
+  // Developers belong in the developer panel, not the user CRM — keep them separate.
+  if (auth.user.role === "developer") return <Navigate to="/dev" replace />;
+
   // Logged in — if sitting on /login, send home
   if (pathname === "/login") return <Navigate to="/" replace />;
 
