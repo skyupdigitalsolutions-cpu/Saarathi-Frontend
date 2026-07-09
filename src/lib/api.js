@@ -7,8 +7,8 @@ const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 async function req(path, opts = {}) {
   const res = await fetch(API_BASE + "/api" + path, {
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   if (!res.ok && res.status !== 423 && res.status !== 200) {
@@ -56,4 +56,13 @@ export const api = {
   waConversations: () => req("/whatsapp/conversations"),
   waThread: (leadId) => req(`/whatsapp/thread/${leadId}`),
   waSend: (body) => req("/whatsapp/send", { method: "POST", body }),
+  // subscription (public status)
+  subscriptionStatus: () => req("/subscription/status"),
+  // subscription (developer panel — needs dev key)
+  subGet: (key) => req("/subscription", { headers: { "x-dev-key": key } }),
+  subSet: (body, key) => req("/subscription", { method: "POST", body, headers: { "x-dev-key": key } }),
+  subRenew: (days, key) =>
+    req("/subscription/renew", { method: "POST", body: { days }, headers: { "x-dev-key": key } }),
+  subToggle: (enabled, key) =>
+    req("/subscription/toggle", { method: "POST", body: { enabled }, headers: { "x-dev-key": key } }),
 };
