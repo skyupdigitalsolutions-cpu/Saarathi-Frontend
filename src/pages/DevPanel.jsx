@@ -1,119 +1,98 @@
 import { useState, useEffect, useCallback } from "react";
-import { api } from "../lib/api.js";
-import { ShieldCheck, RefreshCw, Power, Save, LogOut } from "lucide-react";
+import { api, setToken } from "../lib/api.js";
+import Login from "../components/Login.jsx";
+import { RefreshCw, Power, Save, LogOut, UserPlus, Trash2 } from "lucide-react";
 
-const KEY_STORE = "sarathi_dev_key";
 const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 export default function DevPanel() {
-  const [key, setKey] = useState(() => localStorage.getItem(KEY_STORE) || "");
   const [authed, setAuthed] = useState(false);
-  const [keyInput, setKeyInput] = useState("");
+  const [checking, setChecking] = useState(true);
   const [status, setStatus] = useState(null);
+  const [users, setUsers] = useState([]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  // new user form
+  const [nu, setNu] = useState({ name: "", email: "", password: "", role: "user" });
 
-  const apply = useCallback((s) => {
+  const applyStatus = useCallback((s) => {
     setStatus(s);
     setStart(toDateInput(s.startDate));
     setEnd(toDateInput(s.endDate));
     setEnabled(s.enabled);
   }, []);
 
-  const load = useCallback(
-    async (k) => {
-      setErr("");
-      try {
-        const s = await api.subGet(k);
-        apply(s);
-        setAuthed(true);
-        localStorage.setItem(KEY_STORE, k);
-        setKey(k);
-      } catch (e) {
-        setAuthed(false);
-        localStorage.removeItem(KEY_STORE);
-        setErr(e.message || "Login failed");
-      }
-    },
-    [apply]
-  );
+  const load = useCallback(async () => {
+    try {
+      const s = await api.subGet();
+      applyStatus(s);
+      setUsers(await api.listUsers().catch(() => []));
+      setAuthed(true);
+    } catch {
+      setAuthed(false);
+    }
+    setChecking(false);
+  }, [applyStatus]);
 
-  useEffect(() => {
-    if (key) load(key);
-  }, [key, load]);
+  useEffect(() => { load(); }, [load]);
 
   const flash = (m) => { setMsg(m); setErr(""); setTimeout(() => setMsg(""), 2500); };
 
   const save = async () => {
     setBusy(true); setErr("");
     try {
-      const s = await api.subSet(
-        { startDate: `${start}T00:00:00`, endDate: `${end}T23:59:59`, enabled },
-        key
-      );
-      apply(s); flash("Subscription updated");
+      applyStatus(await api.subSet({ startDate: `${start}T00:00:00`, endDate: `${end}T23:59:59`, enabled }));
+      flash("Subscription updated");
     } catch (e) { setErr(e.message); }
     setBusy(false);
   };
-
   const renew = async (days) => {
     setBusy(true); setErr("");
-    try { apply(await api.subRenew(days, key)); flash(`Renewed for ${days} days`); }
+    try { applyStatus(await api.subRenew(days)); flash(`Renewed for ${days} days`); }
     catch (e) { setErr(e.message); }
     setBusy(false);
   };
-
   const toggle = async () => {
     setBusy(true); setErr("");
-    try { apply(await api.subToggle(!enabled, key)); flash(enabled ? "Access disabled" : "Access enabled"); }
+    try { applyStatus(await api.subToggle(!enabled)); flash(enabled ? "Access disabled" : "Access enabled"); }
     catch (e) { setErr(e.message); }
     setBusy(false);
   };
-
-  const logout = () => {
-    localStorage.removeItem(KEY_STORE);
-    setKey(""); setAuthed(false); setStatus(null); setKeyInput("");
+  const addUser = async () => {
+    if (!nu.email || nu.password.length < 6) return setErr("Email and a 6+ char password are required.");
+    setBusy(true); setErr("");
+    try {
+      await api.createUser(nu);
+      setNu({ name: "", email: "", password: "", role: "user" });
+      setUsers(await api.listUsers());
+      flash("User created");
+    } catch (e) { setErr(e.message); }
+    setBusy(false);
   };
+  const delUser = async (id) => {
+    setBusy(true); setErr("");
+    try { await api.deleteUser(id); setUsers(await api.listUsers()); flash("User removed"); }
+    catch (e) { setErr(e.message); }
+    setBusy(false);
+  };
+  const logout = () => { setToken(null); setAuthed(false); setStatus(null); };
 
-  // ---- login gate ----
-  if (!authed) {
-    return (
-      <div className="dev-login">
-        <div className="dev-login-card">
-          <div className="lock-icon"><ShieldCheck size={24} /></div>
-          <h1>Developer Panel</h1>
-          <p>Enter the developer key to manage the subscription.</p>
-          {err && <div className="dev-err">{err}</div>}
-          <input
-            type="password"
-            className="input"
-            placeholder="Developer key"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && load(keyInput)}
-          />
-          <button className="btn btn-primary" style={{ width: "100%" }} onClick={() => load(keyInput)}>
-            Unlock
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (checking) return <div className="auth-screen" />;
+  if (!authed) return <Login developer onAuthed={() => { setChecking(true); load(); }} />;
 
-  // ---- panel ----
   const active = status?.active;
   return (
     <div className="page dev-page">
       <div className="dev-head">
         <div>
           <h1 className="page-title" style={{ fontSize: 22 }}>Subscription Control</h1>
-          <p style={{ color: "var(--muted)", marginTop: 4 }}>Monthly plan — start / end dates and access.</p>
+          <p style={{ color: "var(--muted)", marginTop: 4 }}>Monthly plan, access control &amp; users.</p>
         </div>
         <button className="btn btn-sm" onClick={logout}><LogOut size={14} /> Log out</button>
       </div>
@@ -137,21 +116,15 @@ export default function DevPanel() {
       </div>
 
       <div className="card dev-card">
-        <label className="dev-field">
-          <span>Start date</span>
-          <input type="date" className="input" value={start} onChange={(e) => setStart(e.target.value)} />
-        </label>
-        <label className="dev-field">
-          <span>End date (expiry)</span>
-          <input type="date" className="input" value={end} onChange={(e) => setEnd(e.target.value)} />
-        </label>
+        <label className="dev-field"><span>Start date</span>
+          <input type="date" className="input" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label className="dev-field"><span>End date (expiry)</span>
+          <input type="date" className="input" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
         <label className="dev-toggle">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           <span>Access enabled (master switch)</span>
         </label>
-        <button className="btn btn-primary" disabled={busy} onClick={save}>
-          <Save size={15} /> Save changes
-        </button>
+        <button className="btn btn-primary" disabled={busy} onClick={save}><Save size={15} /> Save changes</button>
       </div>
 
       <div className="dev-actions">
@@ -160,6 +133,31 @@ export default function DevPanel() {
         <button className={"btn " + (enabled ? "btn-danger" : "btn-primary")} disabled={busy} onClick={toggle}>
           <Power size={15} /> {enabled ? "Disable access now" : "Enable access"}
         </button>
+      </div>
+
+      <h2 className="page-title" style={{ fontSize: 18, margin: "30px 0 14px" }}>Users</h2>
+      <div className="card dev-card" style={{ maxWidth: 620 }}>
+        <div className="dev-userform">
+          <input className="input" placeholder="Name" value={nu.name} onChange={(e) => setNu({ ...nu, name: e.target.value })} />
+          <input className="input" placeholder="Email" type="email" value={nu.email} onChange={(e) => setNu({ ...nu, email: e.target.value })} />
+          <input className="input" placeholder="Password (min 6)" type="text" value={nu.password} onChange={(e) => setNu({ ...nu, password: e.target.value })} />
+          <select className="input" value={nu.role} onChange={(e) => setNu({ ...nu, role: e.target.value })}>
+            <option value="user">User</option>
+            <option value="developer">Developer</option>
+          </select>
+          <button className="btn btn-primary" disabled={busy} onClick={addUser}><UserPlus size={15} /> Add</button>
+        </div>
+      </div>
+      <div className="dev-userlist">
+        {users.map((u) => (
+          <div className="dev-userrow" key={u.id}>
+            <div>
+              <div className="dev-username">{u.name || "—"} <span className={"role-tag " + u.role}>{u.role}</span></div>
+              <div className="dev-useremail">{u.email}</div>
+            </div>
+            <button className="btn btn-sm btn-danger" disabled={busy} onClick={() => delUser(u.id)}><Trash2 size={14} /></button>
+          </div>
+        ))}
       </div>
     </div>
   );
