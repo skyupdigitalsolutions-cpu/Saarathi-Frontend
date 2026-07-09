@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Menu } from "lucide-react";
 import Sidebar from "./components/Sidebar.jsx";
 import Copilot from "./components/Copilot.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -10,6 +10,9 @@ import Report from "./pages/Report.jsx";
 import Messaging from "./pages/Messaging.jsx";
 import WhatsApp from "./pages/WhatsApp.jsx";
 import Settings from "./pages/Settings.jsx";
+import DevPanel from "./pages/DevPanel.jsx";
+import ExpiryBanner from "./components/ExpiryBanner.jsx";
+import LockScreen from "./components/LockScreen.jsx";
 import { api } from "./lib/api.js";
 
 const TITLES = {
@@ -21,30 +24,44 @@ const TITLES = {
   "/settings": "Settings",
 };
 
-export default function App() {
+function AppShell() {
   const [stats, setStats] = useState(null);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sub, setSub] = useState(null);
   const { pathname } = useLocation();
 
-  const loadStats = useCallback(() => {
-    api.stats().then(setStats).catch(() => {});
-  }, []);
-  useEffect(() => { loadStats(); }, [loadStats]);
+  const loadStats = useCallback(() => { api.stats().then(setStats).catch(() => {}); }, []);
+  const loadSub = useCallback(() => { api.subscriptionStatus().then(setSub).catch(() => {}); }, []);
+
+  useEffect(() => { loadStats(); loadSub(); }, [loadStats, loadSub]);
+  // re-check subscription every 5 minutes so a mid-session expiry locks the app
+  useEffect(() => { const t = setInterval(loadSub, 5 * 60 * 1000); return () => clearInterval(t); }, [loadSub]);
+  // close the mobile drawer whenever the route changes
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   const title = TITLES[pathname] || (pathname.startsWith("/leads/") ? "Lead detail" : "Saarathi CRM");
 
+  if (sub && sub.locked) return <LockScreen status={sub} />;
+
   return (
     <div className="app">
-      <Sidebar stats={stats} />
+      <Sidebar stats={stats} open={menuOpen} onClose={() => setMenuOpen(false)} />
+      {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}
       <div className="main">
         <header className="topbar">
+          <button className="hamburger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
+            <Menu />
+          </button>
           <div className="page-title">{title}</div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
             <button className="btn btn-sm" onClick={() => setCopilotOpen(true)}>
-              <Sparkles size={15} color="var(--brand)" /> Ask Copilot
+              <Sparkles size={15} color="var(--brand)" /> <span className="btn-label">Ask Copilot</span>
             </button>
           </div>
         </header>
+
+        <ExpiryBanner status={sub} />
 
         <Routes>
           <Route path="/" element={<Dashboard stats={stats} reload={loadStats} />} />
@@ -65,4 +82,10 @@ export default function App() {
       <Copilot open={copilotOpen} onClose={() => setCopilotOpen(false)} onChanged={loadStats} />
     </div>
   );
+}
+
+export default function App() {
+  const { pathname } = useLocation();
+  if (pathname.startsWith("/dev")) return <DevPanel />;
+  return <AppShell />;
 }
