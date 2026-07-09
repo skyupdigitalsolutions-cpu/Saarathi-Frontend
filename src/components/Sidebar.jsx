@@ -2,14 +2,14 @@ import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle } from "lucide-react";
 import { Logo } from "./ui.jsx";
 
-export default function Sidebar({ stats }) {
+export default function Sidebar({ stats, open, onClose }) {
   const newToday = stats?.kpis?.today;
   const overdue = stats?.kpis?.overdueFollowUps;
 
   const link = ({ isActive }) => "nav-item" + (isActive ? " active" : "");
 
   return (
-    <aside className="sidebar">
+    <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="brand">
         <div className="brand-mark"><Logo /></div>
         <div>
