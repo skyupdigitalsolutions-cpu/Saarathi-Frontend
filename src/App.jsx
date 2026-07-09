@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Sparkles, Menu } from "lucide-react";
 import Sidebar from "./components/Sidebar.jsx";
 import Copilot from "./components/Copilot.jsx";
@@ -11,9 +11,12 @@ import Messaging from "./pages/Messaging.jsx";
 import WhatsApp from "./pages/WhatsApp.jsx";
 import Settings from "./pages/Settings.jsx";
 import DevPanel from "./pages/DevPanel.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
+import Login from "./components/Login.jsx";
 import ExpiryBanner from "./components/ExpiryBanner.jsx";
 import LockScreen from "./components/LockScreen.jsx";
-import { api } from "./lib/api.js";
+import { api, getToken, setToken } from "./lib/api.js";
 
 const TITLES = {
   "/": "Dashboard",
@@ -24,7 +27,7 @@ const TITLES = {
   "/settings": "Settings",
 };
 
-function AppShell() {
+function AppShell({ user, onLogout }) {
   const [stats, setStats] = useState(null);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,9 +38,7 @@ function AppShell() {
   const loadSub = useCallback(() => { api.subscriptionStatus().then(setSub).catch(() => {}); }, []);
 
   useEffect(() => { loadStats(); loadSub(); }, [loadStats, loadSub]);
-  // re-check subscription every 5 minutes so a mid-session expiry locks the app
   useEffect(() => { const t = setInterval(loadSub, 5 * 60 * 1000); return () => clearInterval(t); }, [loadSub]);
-  // close the mobile drawer whenever the route changes
   useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   const title = TITLES[pathname] || (pathname.startsWith("/leads/") ? "Lead detail" : "Saarathi CRM");
@@ -46,13 +47,11 @@ function AppShell() {
 
   return (
     <div className="app">
-      <Sidebar stats={stats} open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Sidebar stats={stats} user={user} onLogout={onLogout} open={menuOpen} onClose={() => setMenuOpen(false)} />
       {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}
       <div className="main">
         <header className="topbar">
-          <button className="hamburger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-            <Menu />
-          </button>
+          <button className="hamburger" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu /></button>
           <div className="page-title">{title}</div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
             <button className="btn btn-sm" onClick={() => setCopilotOpen(true)}>
@@ -86,6 +85,40 @@ function AppShell() {
 
 export default function App() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [auth, setAuth] = useState({ loading: true, user: null });
+
+  const loadMe = useCallback(async () => {
+    if (!getToken()) { setAuth({ loading: false, user: null }); return; }
+    try {
+      const { user } = await api.me();
+      setAuth({ loading: false, user });
+    } catch {
+      setToken(null);
+      setAuth({ loading: false, user: null });
+    }
+  }, []);
+  useEffect(() => { loadMe(); }, [loadMe]);
+
+  // Public routes (no login required)
+  if (pathname === "/forgot") return <ForgotPassword />;
+  if (pathname === "/reset") return <ResetPassword />;
+  // Developer panel manages its own developer login
   if (pathname.startsWith("/dev")) return <DevPanel />;
-  return <AppShell />;
+
+  if (auth.loading) return <div className="auth-screen" />;
+
+  if (!auth.user) {
+    return <Login onAuthed={(u) => { setAuth({ loading: false, user: u }); navigate("/"); }} />;
+  }
+
+  // Logged in — if sitting on /login, send home
+  if (pathname === "/login") return <Navigate to="/" replace />;
+
+  return (
+    <AppShell
+      user={auth.user}
+      onLogout={() => { setToken(null); setAuth({ loading: false, user: null }); navigate("/login"); }}
+    />
+  );
 }
