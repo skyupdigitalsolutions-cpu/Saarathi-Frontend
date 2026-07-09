@@ -5,12 +5,27 @@ const json = (r) => r.json();
 // In dev leave it empty so Vite proxies /api -> localhost:5000.
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
+const TOKEN_KEY = "sarathi_token";
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (t) => (t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY));
+
 async function req(path, opts = {}) {
+  const token = getToken();
   const res = await fetch(API_BASE + "/api" + path, {
     ...opts,
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+      ...(opts.headers || {}),
+    },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
+  // Session invalid/expired on a protected route -> bounce to login.
+  if (res.status === 401 && !path.startsWith("/auth")) {
+    setToken(null);
+    if (!location.pathname.startsWith("/login")) location.assign("/login");
+    throw new Error("Session expired");
+  }
   if (!res.ok && res.status !== 423 && res.status !== 200) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || err.error || `Request failed (${res.status})`);
@@ -19,6 +34,17 @@ async function req(path, opts = {}) {
 }
 
 export const api = {
+  // auth
+  login: (email, password) => req("/auth/login", { method: "POST", body: { email, password } }),
+  me: () => req("/auth/me"),
+  forgot: (email) => req("/auth/forgot", { method: "POST", body: { email } }),
+  resetPassword: (token, password) => req("/auth/reset", { method: "POST", body: { token, password } }),
+  changePassword: (currentPassword, newPassword) =>
+    req("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
+  // user management (developer only)
+  listUsers: () => req("/auth/users"),
+  createUser: (body) => req("/auth/users", { method: "POST", body }),
+  deleteUser: (id) => req(`/auth/users/${id}`, { method: "DELETE" }),
   // leads
   listLeads: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== "" && v != null));
@@ -56,13 +82,10 @@ export const api = {
   waConversations: () => req("/whatsapp/conversations"),
   waThread: (leadId) => req(`/whatsapp/thread/${leadId}`),
   waSend: (body) => req("/whatsapp/send", { method: "POST", body }),
-  // subscription (public status)
+  // subscription (status is public; the rest require a developer session token)
   subscriptionStatus: () => req("/subscription/status"),
-  // subscription (developer panel — needs dev key)
-  subGet: (key) => req("/subscription", { headers: { "x-dev-key": key } }),
-  subSet: (body, key) => req("/subscription", { method: "POST", body, headers: { "x-dev-key": key } }),
-  subRenew: (days, key) =>
-    req("/subscription/renew", { method: "POST", body: { days }, headers: { "x-dev-key": key } }),
-  subToggle: (enabled, key) =>
-    req("/subscription/toggle", { method: "POST", body: { enabled }, headers: { "x-dev-key": key } }),
+  subGet: () => req("/subscription"),
+  subSet: (body) => req("/subscription", { method: "POST", body }),
+  subRenew: (days) => req("/subscription/renew", { method: "POST", body: { days } }),
+  subToggle: (enabled) => req("/subscription/toggle", { method: "POST", body: { enabled } }),
 };
