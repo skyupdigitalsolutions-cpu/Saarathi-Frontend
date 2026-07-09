@@ -1,8 +1,8 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle, LogOut } from "lucide-react";
 import { Logo } from "./ui.jsx";
 
-export default function Sidebar({ stats, open, onClose }) {
+export default function Sidebar({ stats, user, onLogout, open, onClose }) {
   const newToday = stats?.kpis?.today;
   const overdue = stats?.kpis?.overdueFollowUps;
 
@@ -45,7 +45,15 @@ export default function Sidebar({ stats, open, onClose }) {
 
       <div className="sidebar-foot">
         {overdue ? `${overdue} follow-up${overdue > 1 ? "s" : ""} due` : "All follow-ups clear"}
-        <br />
+        {user && (
+          <div className="sidebar-user">
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-email">{user.email}</div>
+              <div className="sidebar-user-role">{user.role}</div>
+            </div>
+            <button className="sidebar-logout" onClick={onLogout} title="Log out"><LogOut size={16} /></button>
+          </div>
+        )}
         <span style={{ opacity: 0.7 }}>Saarathi CRM v1.0</span>
       </div>
     </aside>
