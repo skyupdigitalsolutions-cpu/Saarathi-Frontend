@@ -20,6 +20,11 @@ export default function Login({ developer = false, onAuthed }) {
         setBusy(false);
         return;
       }
+      if (!developer && user.role === "developer") {
+        setErr("This is a developer account. Please use the developer panel at /dev.");
+        setBusy(false);
+        return;
+      }
       setToken(token);
       onAuthed?.(user);
     } catch (e) {
@@ -63,6 +68,7 @@ export default function Login({ developer = false, onAuthed }) {
 
         <div className="auth-links">
           <Link to="/forgot">Forgot password?</Link>
+          {!developer && <> · <Link to="/dev">Developer login</Link></>}
         </div>
       </div>
     </div>
