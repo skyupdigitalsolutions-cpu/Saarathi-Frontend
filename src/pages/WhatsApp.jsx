@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  MessageCircle, Send, Search, X, Lock, Check, CheckCheck, AlertTriangle, Plus, Clock,
+  MessageCircle, Send, Search, X, Lock, Check, CheckCheck, AlertTriangle, Plus, Clock, Zap,
 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { inr, LOAN_SHORT, timeAgo, dateTime } from "../lib/format.js";
@@ -73,6 +73,8 @@ export default function WhatsApp() {
   const [mode, setMode] = useState("text"); // text | template
   const [sending, setSending] = useState(false);
   const [newChat, setNewChat] = useState(false);
+  const [automation, setAutomation] = useState(null);
+  const [savingAuto, setSavingAuto] = useState(false);
   const bodyRef = useRef(null);
 
   const loadConvos = useCallback(() => {
@@ -82,8 +84,18 @@ export default function WhatsApp() {
   useEffect(() => {
     api.waStatus().then(setStatus).catch(() => setStatus({ enabled: false, configured: false }));
     api.waTemplates().then((d) => setTemplates(d.templates)).catch(() => {});
+    api.waGetAutomation().then(setAutomation).catch(() => {});
     loadConvos();
   }, [loadConvos]);
+
+  async function saveAutomation(next) {
+    setSavingAuto(true);
+    try {
+      const saved = await api.waSetAutomation(next);
+      setAutomation(saved);
+      show("Automation saved");
+    } catch (e) { show(e.message); } finally { setSavingAuto(false); }
+  }
 
   const loadThread = useCallback((id) => {
     if (!id) return;
@@ -144,6 +156,39 @@ export default function WhatsApp() {
           {!status.enabled
             ? <>WhatsApp channel is off — set <b>CHANNEL_WHATSAPP=true</b> in the backend .env and restart.</>
             : <>WhatsApp is on but not connected yet — add your <b>WHATSAPP_TOKEN</b> and <b>WHATSAPP_PHONE_NUMBER_ID</b> in .env. You can still browse the interface below.</>}
+        </div>
+      )}
+
+      {automation && (
+        <div className="card wa-automation" style={{ marginBottom: 16, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Zap size={16} color={WA_GREEN} />
+              <div>
+                <div className="card-title">Auto-send on new lead</div>
+                <div className="muted" style={{ fontSize: 12.5 }}>
+                  Sends a template automatically when a lead is added — chosen by where the lead came from.
+                </div>
+              </div>
+            </div>
+            <label className="dev-toggle" style={{ margin: 0 }}>
+              <input type="checkbox" checked={automation.enabled} disabled={savingAuto}
+                onChange={(e) => saveAutomation({ enabled: e.target.checked, templates: automation.templates })} />
+              <span>{automation.enabled ? "On" : "Off"}</span>
+            </label>
+          </div>
+          <div className="wa-auto-grid" style={{ opacity: automation.enabled ? 1 : 0.5, pointerEvents: automation.enabled ? "auto" : "none" }}>
+            {[["website", "Website form"], ["meta", "Meta lead ad"], ["manual", "Manual add"]].map(([key, label]) => (
+              <label key={key} className="wa-auto-field">
+                <span>{label}</span>
+                <select className="input" value={automation.templates?.[key] || ""} disabled={savingAuto}
+                  onChange={(e) => saveAutomation({ enabled: automation.enabled, templates: { ...automation.templates, [key]: e.target.value } })}>
+                  <option value="">— Don't send —</option>
+                  {templates.map((t) => <option key={t.name} value={t.name}>{t.label || t.name}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
