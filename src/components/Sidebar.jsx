@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle, Megaphone, LogOut } from "lucide-react";
 import { Logo } from "./ui.jsx";
 
 export default function Sidebar({ stats, user, onLogout, open, onClose }) {
@@ -35,6 +35,9 @@ export default function Sidebar({ stats, user, onLogout, open, onClose }) {
         </NavLink>
         <NavLink to="/whatsapp" className={link}>
           <MessageCircle /> WhatsApp
+        </NavLink>
+        <NavLink to="/campaigns" className={link}>
+          <Megaphone /> Campaigns
         </NavLink>
 
         <div className="nav-label">Account</div>
