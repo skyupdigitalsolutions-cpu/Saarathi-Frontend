@@ -86,6 +86,9 @@ export const api = {
   waSend: (body) => req("/whatsapp/send", { method: "POST", body }),
   waGetAutomation: () => req("/whatsapp/automation"),
   waSetAutomation: (body) => req("/whatsapp/automation", { method: "POST", body }),
+  // meta / campaigns
+  metaStatus: () => req("/meta/status"),
+  metaCampaigns: () => req("/meta/campaigns"),
   // subscription (status is public; the rest require a developer session token)
   subscriptionStatus: () => req("/subscription/status"),
   subGet: () => req("/subscription"),
