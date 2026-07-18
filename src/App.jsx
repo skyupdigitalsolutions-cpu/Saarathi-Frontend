@@ -9,6 +9,7 @@ import LeadDetail from "./pages/LeadDetail.jsx";
 import Report from "./pages/Report.jsx";
 import Messaging from "./pages/Messaging.jsx";
 import WhatsApp from "./pages/WhatsApp.jsx";
+import Campaigns from "./pages/Campaigns.jsx";
 import Settings from "./pages/Settings.jsx";
 import DevPanel from "./pages/DevPanel.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
@@ -24,6 +25,7 @@ const TITLES = {
   "/report": "Daily Report",
   "/messaging": "Messaging",
   "/whatsapp": "WhatsApp",
+  "/campaigns": "Campaigns",
   "/settings": "Settings",
 };
 
@@ -69,6 +71,7 @@ function AppShell({ user, onLogout }) {
           <Route path="/report" element={<Report />} />
           <Route path="/messaging" element={<Messaging />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
+          <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </div>
