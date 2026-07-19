@@ -1,26 +1,44 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Megaphone, CheckCircle2, AlertCircle, RefreshCw, Copy, ExternalLink } from "lucide-react";
+import {
+  Users, Flame, Trophy, CheckCircle2, AlertCircle,
+  RefreshCw, Copy, ArrowUpRight, Megaphone,
+} from "lucide-react";
 import { api } from "../lib/api.js";
 import { timeAgo } from "../lib/format.js";
 import { useToast } from "../components/ui.jsx";
 
-// Backend base, so we can show the full public webhook URL to paste into Meta.
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 const FALLBACK_BASE = "https://saarathi-backend.onrender.com";
 
-function ConnCheck({ ok, label }) {
+function ConnRow({ ok, label, hint }) {
   return (
-    <div className="conn-check">
-      {ok ? (
-        <CheckCircle2 size={16} className="conn-ok" />
-      ) : (
-        <AlertCircle size={16} className="conn-pending" />
-      )}
-      <span className="conn-check-label">{label}</span>
+    <div className="conn-row">
+      <span className={"conn-ic " + (ok ? "is-ok" : "is-pending")}>
+        {ok ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}
+      </span>
+      <div className="conn-row-text">
+        <div className="conn-row-label">{label}</div>
+        <div className="conn-row-hint muted">{hint}</div>
+      </div>
       <span className={"conn-tag " + (ok ? "conn-tag-ok" : "conn-tag-pending")}>
         {ok ? "Set" : "Not set"}
       </span>
+    </div>
+  );
+}
+
+function StatTile({ icon, label, value, foot, accent }) {
+  return (
+    <div className="card kpi camp-stat">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div className="kpi-label">{label}</div>
+        <div className="kpi-accent" style={{ background: accent.bg, color: accent.fg }}>
+          {icon}
+        </div>
+      </div>
+      <div className="kpi-value">{value}</div>
+      {foot && <div className="kpi-foot">{foot}</div>}
     </div>
   );
 }
@@ -41,13 +59,10 @@ export default function Campaigns() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const conn = data?.connection;
-  const webhookFull =
-    (API_BASE || FALLBACK_BASE) + (conn?.webhookUrl || "/api/meta/webhook");
+  const webhookFull = (API_BASE || FALLBACK_BASE) + (conn?.webhookUrl || "/api/meta/webhook");
 
   const copyWebhook = () => {
     navigator.clipboard?.writeText(webhookFull).then(
@@ -56,52 +71,80 @@ export default function Campaigns() {
     );
   };
 
+  const totals = (data?.campaigns || []).reduce(
+    (a, c) => ({
+      hot: a.hot + c.hot,
+      converted: a.converted + (c.converted || 0),
+    }),
+    { hot: 0, converted: 0 }
+  );
+
   return (
-    <div className="page" style={{ maxWidth: 1080 }}>
+    <div className="page camp-page">
       {node}
 
       <div className="camp-head">
-        <div>
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18 }}>
-            <Megaphone size={19} color="var(--brand)" /> Campaigns
-          </div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-            Meta (Facebook &amp; Instagram) lead ads flowing into the CRM.
-          </div>
-        </div>
+        <p className="muted camp-intro">
+          Leads from your Meta (Facebook &amp; Instagram) ad campaigns, captured automatically.
+        </p>
         <button className="btn btn-sm" onClick={load} disabled={loading}>
           <RefreshCw size={15} className={loading ? "spin" : ""} /> Refresh
         </button>
       </div>
 
-      {/* ---- Connection status ---- */}
-      <div className="card" style={{ marginBottom: 16 }}>
+      {/* summary tiles */}
+      {data && (
+        <div className="grid kpi-grid camp-stats">
+          <StatTile
+            icon={<Users />} label="Meta leads" value={data.totalMetaLeads}
+            foot={`${data.campaigns.length} campaign${data.campaigns.length === 1 ? "" : "s"}`}
+            accent={{ bg: "var(--brand-soft)", fg: "var(--brand)" }}
+          />
+          <StatTile
+            icon={<Flame />} label="Hot" value={totals.hot}
+            foot="high-intent leads"
+            accent={{ bg: "var(--hot-bg)", fg: "var(--hot)" }}
+          />
+          <StatTile
+            icon={<Trophy />} label="Converted" value={totals.converted}
+            foot="sanctioned or disbursed"
+            accent={{ bg: "var(--accent-soft)", fg: "var(--accent)" }}
+          />
+        </div>
+      )}
+
+      {/* connection */}
+      <div className="card camp-card">
         <div className="card-head">
-          <div className="card-title">Connection</div>
+          <div>
+            <div className="card-title">Connection</div>
+            <div className="card-sub">Meta Lead Ads webhook status</div>
+          </div>
           {conn && (
             <span className={"conn-pill " + (conn.live ? "conn-pill-live" : "conn-pill-setup")}>
+              <span className="conn-pill-dot" />
               {conn.live ? "Live" : "Setup incomplete"}
             </span>
           )}
         </div>
 
         {conn ? (
-          <>
-            <div className="conn-grid">
-              <ConnCheck ok={conn.verifyTokenSet} label="Verify token" />
-              <ConnCheck ok={conn.appSecretSet} label="App secret" />
-              <ConnCheck ok={conn.pageTokenSet} label="Page access token" />
+          <div className="card-pad">
+            <div className="conn-list">
+              <ConnRow ok={conn.verifyTokenSet} label="Verify token" hint="Handshake secret for the webhook" />
+              <ConnRow ok={conn.appSecretSet} label="App secret" hint="Signs and verifies incoming leads" />
+              <ConnRow ok={conn.pageTokenSet} label="Page access token" hint="Lets us fetch the lead details" />
             </div>
 
             {!conn.live && (
-              <div className="muted conn-note">
+              <div className="conn-callout">
                 Add the missing values on the backend, then connect the webhook in your Meta app.
                 Until then, campaign leads can&apos;t be pulled in automatically.
               </div>
             )}
 
             <div className="conn-webhook">
-              <div className="muted conn-webhook-label">Webhook URL (paste into Meta)</div>
+              <div className="muted conn-webhook-label">Webhook URL — paste this into Meta</div>
               <div className="conn-webhook-row">
                 <code>{webhookFull}</code>
                 <button className="btn btn-sm" onClick={copyWebhook}>
@@ -109,27 +152,25 @@ export default function Campaigns() {
                 </button>
               </div>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="muted">{loading ? "Checking…" : "—"}</div>
+          <div className="card-pad muted">{loading ? "Checking…" : "—"}</div>
         )}
       </div>
 
-      {/* ---- Per-campaign breakdown ---- */}
-      <div className="card">
+      {/* per-campaign */}
+      <div className="card camp-card">
         <div className="card-head">
-          <div className="card-title">By campaign</div>
-          {data && (
-            <span className="muted" style={{ fontSize: 13 }}>
-              {data.totalMetaLeads} lead{data.totalMetaLeads === 1 ? "" : "s"} from Meta
-            </span>
-          )}
+          <div>
+            <div className="card-title">By campaign</div>
+            <div className="card-sub">Lead quality split per ad campaign</div>
+          </div>
         </div>
 
-        {err && <div className="banner locked" style={{ marginBottom: 12 }}>{err}</div>}
+        {err && <div className="card-pad"><div className="banner locked">{err}</div></div>}
 
         {loading && !data ? (
-          <div className="muted">Loading…</div>
+          <div className="card-pad muted">Loading…</div>
         ) : data && data.campaigns.length ? (
           <div className="table-wrap">
             <table className="table camp-table">
@@ -141,7 +182,7 @@ export default function Campaigns() {
                   <th className="num">Warm</th>
                   <th className="num">Cold</th>
                   <th className="num">Converted</th>
-                  <th>Last lead</th>
+                  <th className="camp-last">Last lead</th>
                   <th></th>
                 </tr>
               </thead>
@@ -149,15 +190,15 @@ export default function Campaigns() {
                 {data.campaigns.map((c, i) => (
                   <tr key={i}>
                     <td className="camp-name">{c.campaign}</td>
-                    <td className="num"><strong>{c.total}</strong></td>
-                    <td className="num"><span className="badge tier-hot">{c.hot}</span></td>
-                    <td className="num"><span className="badge tier-warm">{c.warm}</span></td>
-                    <td className="num"><span className="badge tier-cold">{c.cold}</span></td>
-                    <td className="num">{c.converted || "—"}</td>
-                    <td className="muted" style={{ fontSize: 13 }}>{timeAgo(c.lastLeadAt)}</td>
-                    <td>
-                      <Link className="btn btn-sm" to="/leads">
-                        View <ExternalLink size={12} />
+                    <td className="num camp-total">{c.total}</td>
+                    <td className="num"><span className="pill-count pc-hot">{c.hot}</span></td>
+                    <td className="num"><span className="pill-count pc-warm">{c.warm}</span></td>
+                    <td className="num"><span className="pill-count pc-cold">{c.cold}</span></td>
+                    <td className="num camp-conv">{c.converted || "—"}</td>
+                    <td className="camp-last muted">{timeAgo(c.lastLeadAt)}</td>
+                    <td className="camp-action">
+                      <Link className="btn btn-sm btn-ghost" to="/leads">
+                        View <ArrowUpRight size={13} />
                       </Link>
                     </td>
                   </tr>
@@ -167,9 +208,9 @@ export default function Campaigns() {
           </div>
         ) : (
           <div className="camp-empty">
-            <Megaphone size={26} color="var(--muted)" />
-            <div style={{ fontWeight: 600, marginTop: 8 }}>No Meta leads yet.</div>
-            <div className="muted" style={{ fontSize: 13, marginTop: 4, maxWidth: 380 }}>
+            <div className="camp-empty-ic"><Megaphone size={24} /></div>
+            <div className="camp-empty-title">No campaign leads yet</div>
+            <div className="muted camp-empty-sub">
               Once your lead ads are live and the webhook is connected, campaigns will appear here.
             </div>
           </div>
