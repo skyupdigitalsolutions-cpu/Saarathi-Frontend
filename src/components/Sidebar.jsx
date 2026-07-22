@@ -1,10 +1,37 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle, Megaphone, LogOut } from "lucide-react";
+import { useState } from "react";
+import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle, Megaphone, LogOut, X } from "lucide-react";
 import { Logo } from "./ui.jsx";
+
+function TermsModal({ onClose }) {
+  return (
+    <div className="tg-overlay" onClick={onClose}>
+      <div className="tg-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="tg-head">
+          <div className="tg-title">Terms &amp; Conditions</div>
+          <button className="btn-ghost" onClick={onClose} style={{ padding: 4, marginLeft: "auto" }}><X size={18} /></button>
+        </div>
+        <div className="tg-body" style={{ maxHeight: "60vh" }}>
+          <iframe
+            src="/terms.html"
+            title="Terms and Conditions"
+            style={{ width: "100%", height: "100%", minHeight: 400, border: "none" }}
+          />
+        </div>
+        <div className="tg-foot">
+          <div className="tg-actions" style={{ justifyContent: "flex-end" }}>
+            <button className="btn" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Sidebar({ stats, user, onLogout, open, onClose }) {
   const newToday = stats?.kpis?.today;
   const overdue = stats?.kpis?.overdueFollowUps;
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const link = ({ isActive }) => "nav-item" + (isActive ? " active" : "");
 
@@ -57,8 +84,15 @@ export default function Sidebar({ stats, user, onLogout, open, onClose }) {
             <button className="sidebar-logout" onClick={onLogout} title="Log out"><LogOut size={16} /></button>
           </div>
         )}
-        <span style={{ opacity: 0.7 }}>Saarathi CRM v1.0</span>
+        <div className="sidebar-foot-links">
+          <span style={{ opacity: 0.7 }}>Saarathi CRM v1.0</span>
+          <button className="terms-link" onClick={() => setTermsOpen(true)}>
+            Terms &amp; Conditions
+          </button>
+        </div>
       </div>
+
+      {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
     </aside>
   );
 }
