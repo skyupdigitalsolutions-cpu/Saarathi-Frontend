@@ -89,6 +89,8 @@ export const api = {
   // meta / campaigns
   metaStatus: () => req("/meta/status"),
   metaCampaigns: () => req("/meta/campaigns"),
+  // terms
+  acceptTerms: () => req("/auth/accept-terms", { method: "POST" }),
   // subscription (status is public; the rest require a developer session token)
   subscriptionStatus: () => req("/subscription/status"),
   subGet: () => req("/subscription"),
