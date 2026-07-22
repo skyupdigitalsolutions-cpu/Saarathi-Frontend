@@ -26,7 +26,7 @@ const TITLES = {
   "/messaging": "Messaging",
   "/whatsapp": "WhatsApp",
   "/campaigns": "Campaigns",
-  "/settings": "Settings",
+  
 };
 
 function AppShell({ user, onLogout }) {
