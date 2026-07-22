@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword.jsx";
 import Login from "./components/Login.jsx";
 import ExpiryBanner from "./components/ExpiryBanner.jsx";
 import LockScreen from "./components/LockScreen.jsx";
+import TermsGate from "./components/TermsGate.jsx";
 import { api, getToken, setToken } from "./lib/api.js";
 
 const TITLES = {
@@ -26,7 +27,7 @@ const TITLES = {
   "/messaging": "Messaging",
   "/whatsapp": "WhatsApp",
   "/campaigns": "Campaigns",
-  
+  "/settings": "Settings",
 };
 
 function AppShell({ user, onLogout }) {
@@ -72,7 +73,7 @@ function AppShell({ user, onLogout }) {
           <Route path="/messaging" element={<Messaging />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
           <Route path="/campaigns" element={<Campaigns />} />
-          {/* <Route path="/settings" element={<Settings />} /> */}
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </div>
 
@@ -117,6 +118,19 @@ export default function App() {
 
   // Developers belong in the developer panel, not the user CRM — keep them separate.
   if (auth.user.role === "developer") return <Navigate to="/dev" replace />;
+
+  // First-time login: show blocking T&C gate until accepted.
+  if (!auth.user.termsAccepted) {
+    return (
+      <TermsGate
+        onAccept={async () => {
+          const { user } = await api.acceptTerms();
+          setAuth({ loading: false, user });
+        }}
+        onLogout={() => { setToken(null); setAuth({ loading: false, user: null }); }}
+      />
+    );
+  }
 
   // Logged in — if sitting on /login, send home
   if (pathname === "/login") return <Navigate to="/" replace />;
