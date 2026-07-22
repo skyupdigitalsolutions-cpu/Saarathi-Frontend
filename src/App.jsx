@@ -72,7 +72,7 @@ function AppShell({ user, onLogout }) {
           <Route path="/messaging" element={<Messaging />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
           <Route path="/campaigns" element={<Campaigns />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* <Route path="/settings" element={<Settings />} /> */}
         </Routes>
       </div>
 
