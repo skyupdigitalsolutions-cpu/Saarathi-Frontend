@@ -149,6 +149,23 @@ export default function LeadDetail({ reload }) {
             </div>
           </div>
 
+          {/* Meta form answers — shown only for meta leads that have raw answers */}
+          {lead.source === "meta" && lead.metaFormAnswers && lead.metaFormAnswers.length > 0 && (
+            <div className="card">
+              <div className="card-head">
+                <div className="card-title">Form answers</div>
+                <span className="muted" style={{ fontSize: 12 }}>from Meta ad</span>
+              </div>
+              <div className="card-pad">
+                <dl className="kv">
+                  {lead.metaFormAnswers.map((qa, i) => (
+                    <Row key={i} label={qa.question} value={qa.answer || "—"} />
+                  ))}
+                </dl>
+              </div>
+            </div>
+          )}
+
           {/* tabs: activity / message */}
           <div className="card">
             <div className="card-head">
