@@ -2,22 +2,41 @@ import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import { LayoutDashboard, Users, MessageSquare, Settings, FileText, MessageCircle, Megaphone, LogOut, X } from "lucide-react";
 import { Logo } from "./ui.jsx";
+import { TERMS_INTRO, TERMS_SECTIONS } from "../lib/termsContent.js";
 
 function TermsModal({ onClose }) {
   return (
     <div className="tg-overlay" onClick={onClose}>
       <div className="tg-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
         <div className="tg-head">
-          <div className="tg-title">Terms &amp; Conditions</div>
-          <button className="btn-ghost" onClick={onClose} style={{ padding: 4, marginLeft: "auto" }}><X size={18} /></button>
+          <div>
+            <div className="tg-title">Terms &amp; Conditions</div>
+            <div className="tg-subtitle">Saarathi CRM · Effective 20 July 2026</div>
+          </div>
+          <button
+            className="btn-ghost"
+            onClick={onClose}
+            style={{ padding: 4, marginLeft: "auto" }}
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <div className="tg-body" style={{ maxHeight: "60vh" }}>
-          <iframe
-            src="/terms.html"
-            title="Terms and Conditions"
-            style={{ width: "100%", height: "100%", minHeight: 400, border: "none" }}
-          />
+
+        {/* Scrollable body — inline content, no iframe */}
+        <div className="tg-body">
+          <p className="tg-intro">{TERMS_INTRO}</p>
+          {TERMS_SECTIONS.map((s, i) => (
+            <div key={i} className="tg-section">
+              <span className="tg-sec-head">{s.heading} </span>
+              <span className="tg-sec-body">{s.body}</span>
+            </div>
+          ))}
+          <div className="tg-end-marker">— End of Terms &amp; Conditions —</div>
         </div>
+
+        {/* Footer */}
         <div className="tg-foot">
           <div className="tg-actions" style={{ justifyContent: "flex-end" }}>
             <button className="btn" onClick={onClose}>Close</button>
